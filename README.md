@@ -1,4 +1,4 @@
-# dns-lookup-2-json
+# dns2json
 Print results of a DNS lookup in JSON
 
 <pre>
