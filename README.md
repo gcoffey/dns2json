@@ -1,6 +1,11 @@
 # dns-lookup-2-json
 Print results of a DNS lookup in JSON
 
+<pre>
+USAGE: ./dns2json <DNS NAME> <NAMESERVER>(optional)
+e.g. ./dns2json www.google.com 8.8.8.8
+</pre>
+
 Simply run...
 <pre>
 ./dns2json www.garethcoffey.com
