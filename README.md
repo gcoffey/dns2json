@@ -2,7 +2,7 @@
 Print results of a DNS lookup in JSON
 
 <pre>
-USAGE: ./dns2json <DNS NAME> <NAMESERVER>(optional)
+USAGE: ./dns2json DNSNAME NAMESERVER
 e.g. ./dns2json www.google.com 8.8.8.8
 </pre>
 
