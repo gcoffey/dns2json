@@ -1,5 +1,5 @@
 # dns-lookup-2-json
-Prints results of a DNS lookup in pretty json
+Print results of a DNS lookup in JSON
 
 Simply run...
 <pre>
@@ -10,6 +10,9 @@ and you'll get a nice JSON object back
 
 <pre>
 ./dns2json www.garethcoffey.com
+</pre>
+
+<pre>
 {
     "www.garethcoffey.com": {
         "NS": [
