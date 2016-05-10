@@ -9,10 +9,6 @@ Simply run...
 and you'll get a nice JSON object back
 
 <pre>
-./dns2json www.garethcoffey.com
-</pre>
-
-<pre>
 {
     "www.garethcoffey.com": {
         "NS": [
