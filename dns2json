@@ -1,0 +1,165 @@
+#!/bin/bash
+
+LOG_FILE=/var/log/dns2json.log-`date +%d%m%Y`
+DNSNAME=${1}
+NAMESERVER=${2}
+DEFAULT_RECORD_TYPES=(NS A CNAME TXT)
+
+##########
+
+function usage {
+  echo -e "USAGE: ${0} <DNS NAME> <NAMESERVER>(optional)"
+  echo -e "e.g. ${0} www.google.com 8.8.8.8"
+  exit 1
+}
+
+function log {
+  echo -e "`date` ${1}" >> ${LOG_FILE}
+}
+function info {
+  log "INFO: ${1}"
+}
+function error {
+  log "ERROR: ${1}"
+}
+function fatal {
+  log "FATAL: ${1}"
+  exit 1
+}
+
+function check_python {
+  PYTHON_BIN="`which python &>/dev/null`"
+  if [[ "${?}" == "1" ]];
+  then
+    # No Python
+    PRETTY_JSON="no"
+  else
+    JSON_TOOL=$(`echo "{ \"test\": \"test\" }" | python -m json.tool &>/dev/null`)
+    if [[ "${?}" == "1" ]];
+    then
+      # No json.tool module
+      PRETTY_JSON="no"
+    else
+      PRETTY_JSON="yes"
+    fi  
+  fi
+}
+
+function get_records {
+  NAME=${1}
+  TYPE=${2}
+  OPTIONS="+time=5 +tries=1 +short +noall +answer"
+  if [[ "${NAMESERVER}" == "" ]];
+  then
+    RECORD_LIST=$( dig ${OPTIONS} ${NAME} ${TYPE} 2>/dev/null | sed 's/ /**SPACER**/g' | sed 's/"//g' )
+  else
+    RECORD_LIST=$( dig ${OPTIONS} ${NAME} ${TYPE} @${NAMESERVER} 2>/dev/null | sed 's/ /**SPACER**/g' | sed 's/"//g' )
+  fi
+  if [[ "${?}" == "0" ]];
+  then
+    if [[ "${RECORD_LIST}" == "" ]];
+    then
+      log "No DNS records found for '${NAME}' '${TYPE}'"
+    else
+      create_json_record "${NAME}" ${TYPE} "${RECORD_LIST}"
+         
+      if [[ "${JSON_RECORD}" != "" ]];
+      then
+        JSON_RECORD="`echo ${JSON_RECORD} | sed 's/\*\*SPACER\*\*/ /g'`"
+        if [[ "${PRETTY_JSON}" == "yes" ]];
+        then
+          echo "${JSON_RECORD}" | python -mjson.tool
+        else
+          echo -e "${JSON_RECORD}"
+        fi
+      fi
+    fi
+  else
+    log "DNS lookup failed for '${NAME}' '${TYPE}'"
+  fi
+}
+
+# TODO: Merge JSON objects
+function merge_records {
+  if [[ "$1" != "" ]];
+  then
+    MERGE_RECORDS="${1}"
+    MERGE_COUNT=$(( ${#MERGE_RECORDS[*]} - 1 ))
+    LAST_MERGE=${MERGE_RECORDS[${MERGE_COUNT}]}
+    JSON_RESULT="{ "
+    for m in "${MERGE_RECORDS[@]}"
+    do
+      echo $m
+      if [[ "$m" == "${LAST_MERGE}" ]];
+      then
+        JSON_RESULT="${JSON_RESULT},${m} }"
+      else
+        JSON_RESULT="${JSON_RESULT} ${m},"
+      fi
+    done
+  else
+    JSON_RESULT="{ \"error\": \"NO RESULT\" }"
+  fi
+}
+
+function record_to_json_array {
+  if [[ "$1" != "" ]];
+  then
+    RECORDS=(${1/// })
+    RECORD_COUNT=$(( ${#RECORDS[*]} - 1 ))
+    LAST_RECORD=${RECORDS[$RECORD_COUNT]}
+    R_ARRAY="["
+    for r in "${RECORDS[@]}"
+    do
+      if [[ "$r" == "${LAST_RECORD}" ]];
+      then
+        R_ARRAY="${R_ARRAY}\"$r\"]"
+      else
+        R_ARRAY="${R_ARRAY}\"$r\","
+      fi
+    done
+  else
+    R_ARRAY=""
+  fi
+}
+
+function create_json_record {
+  RECORD_NAME=$1
+  RECORD_TYPE=$2
+  RECORDS=$3
+  #if [[ "${RECORD_TYPE}" == "TXT" ]];
+  #then
+  #  R_ARRAY="${RECORDS}"
+  #else
+    record_to_json_array "${RECORDS}"
+  #fi
+  if [[ "${R_ARRAY}" != "" ]];
+  then
+    JSON_RECORD="{ \"${RECORD_NAME}\": { \"${RECORD_TYPE}\": ${R_ARRAY} } }"
+  else
+    JSON_RECORD=""
+  fi
+}
+
+##########
+
+if [[ "${DNSNAME}" == "" ]];
+then
+  usage
+fi
+
+DOMAIN=`echo ${DNSNAME} |awk -F. '{$1="";OFS="." ; print $0}' | sed 's/^.//'`
+
+if [[ "${DOMAIN}" == "" ]];
+then
+  fatal "Invalid DNSNAME specified"
+fi
+
+check_python
+
+for TYPE in ${DEFAULT_RECORD_TYPES[@]}
+do
+  get_records ${DNSNAME} ${TYPE}
+done
+
+
